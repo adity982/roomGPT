@@ -10,6 +10,7 @@ import { CompareSlider } from "../../components/CompareSlider";
 import Footer from "../../components/Footer";
 import Header from "../../components/Header";
 import LoadingDots from "../../components/LoadingDots";
+import LiveRoomPreview from "../../components/LiveRoomPreview";
 import ResizablePanel from "../../components/ResizablePanel";
 import Toggle from "../../components/Toggle";
 import appendNewToName from "../../utils/appendNewToName";
@@ -51,6 +52,9 @@ export default function DreamPage() {
   const [photoName, setPhotoName] = useState<string | null>(null);
   const [theme, setTheme] = useState<themeType>("Modern");
   const [room, setRoom] = useState<roomType>("Living Room");
+  const [inputMode, setInputMode] = useState<"upload" | "live">("upload");
+  const canCompare =
+    restoredLoaded && originalPhoto !== null && !originalPhoto.startsWith("data:");
 
   const UploadDropZone = () => (
     <UploadDropzone
@@ -69,6 +73,9 @@ export default function DreamPage() {
           });
           setPhotoName(imageName);
           setOriginalPhoto(imageUrl);
+          setRestoredLoaded(false);
+          setRestoredImage(null);
+          setError(null);
           generatePhoto(imageUrl);
         }
       }}
@@ -76,6 +83,51 @@ export default function DreamPage() {
       height="250px"
     />
   );
+
+  function captureLiveRoom(imageUrl: string, imageName: string) {
+    setRoom("Living Room");
+    setPhotoName(imageName);
+    setOriginalPhoto(imageUrl);
+    setRestoredLoaded(false);
+    setRestoredImage(null);
+    setError(null);
+    generatePhoto(imageUrl);
+  }
+
+  function RoomImage({
+    alt,
+    src,
+    className,
+    onLoadingComplete,
+  }: {
+    alt: string;
+    src: string;
+    className: string;
+    onLoadingComplete?: () => void;
+  }) {
+    if (src.startsWith("data:")) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt={alt}
+          src={src}
+          className={className}
+          onLoad={onLoadingComplete}
+        />
+      );
+    }
+
+    return (
+      <Image
+        alt={alt}
+        src={src}
+        className={className}
+        width={475}
+        height={475}
+        onLoadingComplete={onLoadingComplete}
+      />
+    );
+  }
 
   async function generatePhoto(fileUrl: string) {
     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -143,11 +195,17 @@ export default function DreamPage() {
                         Choose your room type.
                       </p>
                     </div>
-                    <DropDown
-                      theme={room}
-                      setTheme={(newRoom) => setRoom(newRoom as typeof room)}
-                      themes={rooms}
-                    />
+                    {inputMode === "live" ? (
+                      <div className="rounded-md border border-slate-700 bg-slate-900 px-4 py-2 text-left text-slate-100 shadow-sm">
+                        Living Room
+                      </div>
+                    ) : (
+                      <DropDown
+                        theme={room}
+                        setTheme={(newRoom) => setRoom(newRoom as typeof room)}
+                        themes={rooms}
+                      />
+                    )}
                   </div>
                   <div className="mt-4 w-full max-w-sm">
                     <div className="flex mt-6 w-96 items-center space-x-3">
@@ -158,7 +216,7 @@ export default function DreamPage() {
                         alt="1 icon"
                       />
                       <p className="text-left font-medium">
-                        Upload a picture of your room.
+                        Add a picture of your room.
                       </p>
                     </div>
                   </div>
@@ -172,52 +230,84 @@ export default function DreamPage() {
               )}
               <div
                 className={`${
-                  restoredLoaded ? "visible mt-6 -ml-8" : "invisible"
+                  canCompare ? "visible mt-6 -ml-8" : "invisible"
                 }`}
               >
                 <Toggle
-                  className={`${restoredLoaded ? "visible mb-6" : "invisible"}`}
+                  className={`${canCompare ? "visible mb-6" : "invisible"}`}
                   sideBySide={sideBySide}
                   setSideBySide={(newVal) => setSideBySide(newVal)}
                 />
               </div>
-              {restoredLoaded && sideBySide && (
+              {canCompare && sideBySide && (
                 <CompareSlider
                   original={originalPhoto!}
                   restored={restoredImage!}
                 />
               )}
-              {!originalPhoto && <UploadDropZone />}
+              {!originalPhoto && (
+                <div className="w-full">
+                  <div className="mx-auto mt-4 grid w-full max-w-sm grid-cols-2 rounded-xl border border-slate-700 bg-slate-950 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setInputMode("upload")}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                        inputMode === "upload"
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-300 hover:bg-slate-800"
+                      }`}
+                    >
+                      Upload Photo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInputMode("live");
+                        setRoom("Living Room");
+                      }}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                        inputMode === "live"
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-300 hover:bg-slate-800"
+                      }`}
+                    >
+                      Live Camera
+                    </button>
+                  </div>
+                  {inputMode === "upload" ? (
+                    <UploadDropZone />
+                  ) : (
+                    <LiveRoomPreview
+                      theme={theme}
+                      onCapture={captureLiveRoom}
+                    />
+                  )}
+                </div>
+              )}
               {originalPhoto && !restoredImage && (
-                <Image
+                <RoomImage
                   alt="original photo"
                   src={originalPhoto}
                   className="rounded-2xl h-96"
-                  width={475}
-                  height={475}
                 />
               )}
-              {restoredImage && originalPhoto && !sideBySide && (
+              {restoredImage && originalPhoto && (!sideBySide || !canCompare) && (
                 <div className="flex sm:space-x-4 sm:flex-row flex-col">
                   <div>
                     <h2 className="mb-1 font-medium text-lg">Original Room</h2>
-                    <Image
+                    <RoomImage
                       alt="original photo"
                       src={originalPhoto}
                       className="rounded-2xl relative w-full h-96"
-                      width={475}
-                      height={475}
                     />
                   </div>
                   <div className="sm:mt-0 mt-8">
                     <h2 className="mb-1 font-medium text-lg">Generated Room</h2>
                     <a href={restoredImage} target="_blank" rel="noreferrer">
-                      <Image
+                      <RoomImage
                         alt="restored photo"
                         src={restoredImage}
                         className="rounded-2xl relative sm:mt-0 mt-2 cursor-zoom-in w-full h-96"
-                        width={475}
-                        height={475}
                         onLoadingComplete={() => setRestoredLoaded(true)}
                       />
                     </a>
@@ -250,6 +340,8 @@ export default function DreamPage() {
                       setRestoredImage(null);
                       setRestoredLoaded(false);
                       setError(null);
+                      setPhotoName(null);
+                      setSideBySide(false);
                     }}
                     className="bg-blue-500 rounded-full text-white font-medium px-4 py-2 mt-8 hover:bg-blue-500/80 transition"
                   >

@@ -1,13 +1,17 @@
 import { Analytics } from "@vercel/analytics/react";
 import { Metadata } from "next";
 import "../styles/globals.css";
+import "../styles/studio.css";
+import { studioPublicOrigin } from "../utils/studio-config";
 
-let title = "Dream Room Generator";
-let description = "Generate your dream room in seconds.";
-let ogimage = "https://roomgpt-demo.vercel.app/og-image.png";
-let sitename = "roomGPT.io";
+let title = "roomGPT Studio";
+let description = "Room concepts, project budgets, and client proposals.";
+let ogimage = "/og-image.png";
+let sitename = "roomGPT Studio";
+const siteUrl = new URL(studioPublicOrigin() || "http://localhost:3000");
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl,
   title,
   description,
   icons: {
@@ -17,7 +21,7 @@ export const metadata: Metadata = {
     images: [ogimage],
     title,
     description,
-    url: "https://roomgpt-demo.vercel.app",
+    url: siteUrl,
     siteName: sitename,
     locale: "en_US",
     type: "website",

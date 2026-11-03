@@ -10,6 +10,7 @@
 
 # next.js
 /.next/
+/.next-dev/
 /out/
 
 # production
@@ -36,3 +37,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env
+
+# Private studio accounts, sessions, projects, and media
+/.studio-data/
+/test-results/
+/playwright-report/
+.env*

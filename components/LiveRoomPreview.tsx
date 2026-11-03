@@ -52,15 +52,19 @@ const themeLooks: Record<
 interface LiveRoomPreviewProps {
   theme: themeType;
   onCapture: (imageUrl: string, imageName: string) => void;
+  rawCapture?: boolean;
 }
 
 export default function LiveRoomPreview({
   theme,
   onCapture,
+  rawCapture = false,
 }: LiveRoomPreviewProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const requestRef = useRef(0);
+  const [starting, setStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
@@ -68,16 +72,21 @@ export default function LiveRoomPreview({
 
   useEffect(() => {
     return () => {
-      stopCamera();
+      requestRef.current++;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     };
   }, []);
 
   async function startCamera() {
+    if (starting || streamRef.current) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError("Live camera preview is not supported in this browser.");
       return;
     }
 
+    const request = ++requestRef.current;
+    setStarting(true);
     try {
       setCameraError(null);
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -89,22 +98,33 @@ export default function LiveRoomPreview({
         audio: false,
       });
 
+      if (request !== requestRef.current || !videoRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
-      setIsLive(true);
+      if (request === requestRef.current) setIsLive(true);
     } catch (error) {
+      if (request !== requestRef.current) return;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
       setCameraError(
         error instanceof Error
           ? error.message
-          : "Unable to start the live camera preview."
+          : "Unable to start the live camera preview.",
       );
+    } finally {
+      if (request === requestRef.current) setStarting(false);
     }
   }
 
   function stopCamera() {
+    requestRef.current++;
+    setStarting(false);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) {
@@ -117,7 +137,12 @@ export default function LiveRoomPreview({
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) {
+    if (
+      !video ||
+      !canvas ||
+      video.videoWidth === 0 ||
+      video.videoHeight === 0
+    ) {
       setCameraError("Start the live preview before capturing a frame.");
       return;
     }
@@ -128,20 +153,22 @@ export default function LiveRoomPreview({
     const context = canvas.getContext("2d");
     if (!context) return;
 
-    context.filter = look.filter;
+    context.filter = rawCapture ? "none" : look.filter;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     context.filter = "none";
-    context.globalAlpha = 0.24;
-    const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
-    gradient.addColorStop(0, theme === "Tropical" ? "#14b8a6" : "#2563eb");
-    gradient.addColorStop(1, theme === "Vintage" ? "#b45309" : "#f8fafc");
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.globalAlpha = 1;
+    if (!rawCapture) {
+      context.globalAlpha = 0.24;
+      const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
+      gradient.addColorStop(0, theme === "Tropical" ? "#14b8a6" : "#2563eb");
+      gradient.addColorStop(1, theme === "Vintage" ? "#b45309" : "#f8fafc");
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.globalAlpha = 1;
+    }
 
     onCapture(
       canvas.toDataURL("image/jpeg", 0.92),
-      `live-living-room-${theme.toLowerCase()}.jpg`
+      `live-living-room-${theme.toLowerCase()}.jpg`,
     );
   }
 
@@ -154,19 +181,20 @@ export default function LiveRoomPreview({
             playsInline
             muted
             className="h-full w-full object-cover"
-            style={{ filter: look.filter }}
+            style={{ filter: rawCapture ? "none" : look.filter }}
           />
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 mix-blend-soft-light"
-            style={{ background: look.overlay }}
+            style={{ background: rawCapture ? "none" : look.overlay }}
           />
           {!isLive && (
             <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
               <VideoCameraIcon className="mb-3 h-10 w-10 text-blue-300" />
               <p className="max-w-md text-sm leading-6 text-slate-300">
-                Open your camera to preview living room style changes in real
-                time.
+                {rawCapture
+                  ? "Capture your living room."
+                  : "Living room camera with color preview."}
               </p>
             </div>
           )}
@@ -175,9 +203,11 @@ export default function LiveRoomPreview({
           <div>
             <div className="flex items-center gap-2 text-sm font-medium text-slate-100">
               <SparklesIcon className="h-5 w-5 text-blue-300" />
-              Live {theme} living room look
+              {rawCapture ? "Room capture" : `${theme} color preview`}
             </div>
-            <p className="mt-1 text-xs text-slate-400">{look.label}</p>
+            <p className="mt-1 text-xs text-slate-400">
+              {rawCapture ? "Original colors preserved" : look.label}
+            </p>
           </div>
           <div className="flex shrink-0 gap-2">
             {isLive ? (
@@ -193,10 +223,11 @@ export default function LiveRoomPreview({
               <button
                 type="button"
                 onClick={startCamera}
+                disabled={starting}
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
               >
                 <VideoCameraIcon className="h-4 w-4" />
-                Start
+                {starting ? "Starting..." : "Start"}
               </button>
             )}
             <button

@@ -13,9 +13,19 @@ const ratelimit = redis
   : undefined;
 
 export async function POST(request: Request) {
+  if (process.env.VERCEL)
+    return NextResponse.json(
+      "Use the signed-in Studio to generate room designs.",
+      { status: 410 },
+    );
+  if (!process.env.REPLICATE_API_KEY)
+    return NextResponse.json(
+      "AI generation is not configured. Upload a concept in Studio instead.",
+      { status: 503 },
+    );
   // Rate Limiter Code
   if (ratelimit) {
-    const headersList = headers();
+    const headersList = await headers();
     const ipIdentifier = headersList.get("x-real-ip");
 
     const result = await ratelimit.limit(ipIdentifier ?? "");
@@ -29,7 +39,7 @@ export async function POST(request: Request) {
             "X-RateLimit-Limit": result.limit,
             "X-RateLimit-Remaining": result.remaining,
           } as any,
-        }
+        },
       );
     }
   }
@@ -88,6 +98,6 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(
-    restoredImage ? restoredImage : "Failed to restore image"
+    restoredImage ? restoredImage : "Failed to restore image",
   );
 }

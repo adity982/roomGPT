@@ -1,9 +1,14 @@
 {
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "tsx --test tests/generation.test.ts",
+    "test:e2e": "npm run build && playwright test"
   },
   "dependencies": {
     "@bytescale/upload-widget-react": "^4.9.0",
@@ -15,7 +20,8 @@
     "@upstash/redis": "^1.19.1",
     "@vercel/analytics": "^0.1.11",
     "framer-motion": "^8.2.4",
-    "next": "^13.4.4",
+    "next": "^15.5.28",
+    "postgres": "4.0.0",
     "react": "^18.2.0",
     "react-compare-slider": "^2.2.0",
     "react-countup": "^6.4.0",
@@ -24,13 +30,21 @@
     "request-ip": "^3.3.0"
   },
   "devDependencies": {
-    "@types/node": "18.11.3",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^22.20.5",
     "@types/react": "18.0.21",
     "@types/react-dom": "18.0.6",
     "@types/request-ip": "^0.0.37",
     "autoprefixer": "^10.4.12",
-    "postcss": "^8.4.18",
+    "postcss": "^8.5.32",
+    "prettier": "^3.9.10",
     "tailwindcss": "^3.2.4",
-    "typescript": "4.9.4"
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "$postcss"
+    }
   }
 }

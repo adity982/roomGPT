@@ -28,7 +28,7 @@ test("designer to client approval, private images, immutable budgets and revocat
   expect(project.shares).toEqual([]);
   expect(project.ownerId).toBeUndefined();
   const anonymous = await browser.newContext({
-    baseURL: "http://localhost:3101",
+    baseURL: process.env.STUDIO_TEST_BASE_URL || "http://localhost:3101",
   });
   expect(
     (
@@ -275,7 +275,9 @@ test("account isolation, validation, and upload workflow", async ({
       })
     ).status(),
   ).toBe(400);
-  const other = await browser.newContext({ baseURL: "http://localhost:3101" });
+  const other = await browser.newContext({
+    baseURL: process.env.STUDIO_TEST_BASE_URL || "http://localhost:3101",
+  });
   await other.request.post("/api/studio/auth", {
     data: {
       mode: "register",
